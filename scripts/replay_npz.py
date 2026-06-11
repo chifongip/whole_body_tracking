@@ -17,6 +17,7 @@ from isaaclab.app import AppLauncher
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Replay converted motions.")
 parser.add_argument("--registry_name", type=str, required=True, help="The name of the wand registry.")
+parser.add_argument("--dof", type=int, default=23, choices=[23, 29], help="Robot DOF variant (23 or 29).")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -39,7 +40,11 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 ##
 # Pre-defined configs
 ##
-from whole_body_tracking.robots.g1 import G1_CYLINDER_CFG
+if args_cli.dof == 23:
+    from whole_body_tracking.robots.g1_23dof import G1_23DOF_CYLINDER_CFG as ROBOT_CFG
+elif args_cli.dof == 29:
+    from whole_body_tracking.robots.g1 import G1_CYLINDER_CFG as ROBOT_CFG
+
 from whole_body_tracking.tasks.tracking.mdp import MotionLoader
 
 
@@ -58,7 +63,7 @@ class ReplayMotionsSceneCfg(InteractiveSceneCfg):
     )
 
     # articulation
-    robot: ArticulationCfg = G1_CYLINDER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+    robot: ArticulationCfg = ROBOT_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
