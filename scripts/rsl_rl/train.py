@@ -3,7 +3,18 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Script to train RL agent with RSL-RL."""
+"""Script to train RL agent with RSL-RL.
+
+Usage:
+    # Train with local motion file:
+    python scripts/rsl_rl/train.py --task=Tracking-Flat-G1-23dof-Wo-State-Estimation-v0 \
+    --motion_file ./motions/{motion_name}.npz --headless --logger tensorboard --run_name {run_name}
+
+    # Train with wandb registry motion file:
+    python scripts/rsl_rl/train.py --task=Tracking-Flat-G1-23dof-Wo-State-Estimation-v0 \
+    --registry_name {your-organization}-org/wandb-registry-motions/{motion_name} \
+    --headless --logger wandb --log_project_name {project_name} --run_name {run_name}
+"""
 
 """Launch Isaac Sim Simulator first."""
 
@@ -24,7 +35,8 @@ parser.add_argument("--num_envs", type=int, default=None, help="Number of enviro
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--seed", type=int, default=None, help="Seed used for the environment")
 parser.add_argument("--max_iterations", type=int, default=None, help="RL Policy training iterations.")
-parser.add_argument("--registry_name", type=str, required=True, help="The name of the wand registry.")
+parser.add_argument("--registry_name", type=str, default=None, help="The name of the wand registry.")
+parser.add_argument("--motion_file", type=str, default=None, help="Path to a local .npz motion file.")
 
 # append RSL-RL cli arguments
 cli_args.add_rsl_rl_args(parser)
@@ -88,17 +100,24 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     env_cfg.seed = agent_cfg.seed
     env_cfg.sim.device = args_cli.device if args_cli.device is not None else env_cfg.sim.device
 
-    # load the motion file from the wandb registry
-    registry_name = args_cli.registry_name
-    if ":" not in registry_name:  # Check if the registry name includes alias, if not, append ":latest"
-        registry_name += ":latest"
-    import pathlib
+    # load the motion file from local path or wandb registry
+    if args_cli.motion_file is not None:
+        motion_file = args_cli.motion_file
+        registry_name = None
+    elif args_cli.registry_name is not None:
+        registry_name = args_cli.registry_name
+        if ":" not in registry_name:  # Check if the registry name includes alias, if not, append ":latest"
+            registry_name += ":latest"
+        import pathlib
 
-    import wandb
+        import wandb
 
-    api = wandb.Api()
-    artifact = api.artifact(registry_name)
-    env_cfg.commands.motion.motion_file = str(pathlib.Path(artifact.download()) / "motion.npz")
+        api = wandb.Api()
+        artifact = api.artifact(registry_name)
+        motion_file = str(pathlib.Path(artifact.download()) / "motion.npz")
+    else:
+        raise ValueError("Either --motion_file or --registry_name must be provided.")
+    env_cfg.commands.motion.motion_file = motion_file
 
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)

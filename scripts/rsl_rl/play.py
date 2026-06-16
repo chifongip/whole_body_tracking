@@ -1,4 +1,13 @@
-"""Script to play a checkpoint if an RL agent from RSL-RL."""
+"""Script to play a checkpoint of an RL agent from RSL-RL.
+
+Usage:
+    # Play with local checkpoint and local motion file:
+    python scripts/rsl_rl/play.py --task=Tracking-Flat-G1-23dof-Wo-State-Estimation-v0 \
+    --load_run {run_dir} --checkpoint model_{iter}.pt --motion_file ./motions/{motion_name}.npz
+
+    # Play with wandb checkpoint:
+    python scripts/rsl_rl/play.py --task=Tracking-Flat-G1-23dof-Wo-State-Estimation-v0 --num_envs=2 --wandb_path={wandb-run-path}
+"""
 
 """Launch Isaac Sim Simulator first."""
 
@@ -95,20 +104,21 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         print(f"[INFO]: Loading model checkpoint from: {run_path}/{file}")
         resume_path = f"./logs/rsl_rl/temp/{file}"
 
-        if args_cli.motion_file is not None:
-            print(f"[INFO]: Using motion file from CLI: {args_cli.motion_file}")
-            env_cfg.commands.motion.motion_file = args_cli.motion_file
-
-        art = next((a for a in wandb_run.used_artifacts() if a.type == "motions"), None)
-        if art is None:
-            print("[WARN] No model artifact found in the run.")
-        else:
-            env_cfg.commands.motion.motion_file = str(pathlib.Path(art.download()) / "motion.npz")
+        if args_cli.motion_file is None:
+            art = next((a for a in wandb_run.used_artifacts() if a.type == "motions"), None)
+            if art is None:
+                print("[WARN] No motion artifact found in the run.")
+            else:
+                env_cfg.commands.motion.motion_file = str(pathlib.Path(art.download()) / "motion.npz")
 
     else:
         print(f"[INFO] Loading experiment from directory: {log_root_path}")
         resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
         print(f"[INFO]: Loading model checkpoint from: {resume_path}")
+
+    if args_cli.motion_file is not None:
+        print(f"[INFO]: Using motion file from CLI: {args_cli.motion_file}")
+        env_cfg.commands.motion.motion_file = args_cli.motion_file
 
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)

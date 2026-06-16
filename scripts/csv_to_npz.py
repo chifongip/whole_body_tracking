@@ -1,10 +1,13 @@
 """This script replay a motion from a csv file and output it to a npz file
 
-.. code-block:: bash
+Usage:
+    # Save locally:
+    python scripts/csv_to_npz.py --input_file {motion_name}.csv --input_fps 30 \
+    --output_name ./motions/{motion_name}.npz --save_local --headless
 
-    # Usage
-    python csv_to_npz.py --input_file LAFAN/dance1_subject2.csv --input_fps 30 --frame_range 122 722 \
-    --output_name ./motions/dance1_subject2.npz --output_fps 50 --dof 23
+    # Upload to wandb registry:
+    python scripts/csv_to_npz.py --input_file {motion_name}.csv --input_fps 30 \
+    --output_name {motion_name} --headless
 """
 
 """Launch Isaac Sim Simulator first."""
@@ -31,6 +34,7 @@ parser.add_argument(
 parser.add_argument("--output_name", type=str, required=True, help="The name of the motion npz file.")
 parser.add_argument("--output_fps", type=int, default=50, help="The fps of the output motion.")
 parser.add_argument("--dof", type=int, default=23, choices=[23, 29], help="Robot DOF variant (23 or 29).")
+parser.add_argument("--save_local", action="store_true", default=False, help="Save .npz locally instead of uploading to wandb.")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -360,17 +364,21 @@ def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene, joi
             ):
                 log[k] = np.stack(log[k], axis=0)
 
-            np.savez("/tmp/motion.npz", **log)
+            if args_cli.save_local:
+                np.savez(args_cli.output_name, **log)
+                print(f"[INFO]: Motion saved locally to: {args_cli.output_name}")
+            else:
+                np.savez("/tmp/motion.npz", **log)
 
-            import wandb
+                import wandb
 
-            COLLECTION = args_cli.output_name
-            run = wandb.init(project="csv_to_npz", name=COLLECTION)
-            print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
-            REGISTRY = "motions"
-            logged_artifact = run.log_artifact(artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY)
-            run.link_artifact(artifact=logged_artifact, target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}")
-            print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
+                COLLECTION = args_cli.output_name
+                run = wandb.init(project="csv_to_npz", name=COLLECTION)
+                print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
+                REGISTRY = "motions"
+                logged_artifact = run.log_artifact(artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY)
+                run.link_artifact(artifact=logged_artifact, target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}")
+                print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
 
 
 def main():

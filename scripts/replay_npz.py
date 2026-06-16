@@ -1,9 +1,11 @@
-"""This script demonstrates how to use the interactive scene interface to setup a scene with multiple prims.
+"""Replay a motion from a .npz file in Isaac Sim.
 
-.. code-block:: bash
+Usage:
+    # Replay local file:
+    python scripts/replay_npz.py --motion_file ./motions/{motion_name}.npz --headless
 
-    # Usage
-    python replay_motion.py --motion_file source/whole_body_tracking/whole_body_tracking/assets/g1/motions/lafan_walk_short.npz
+    # Replay from wandb registry:
+    python scripts/replay_npz.py --registry_name {your-organization}-org/wandb-registry-motions/{motion_name} --headless
 """
 
 """Launch Isaac Sim Simulator first."""
